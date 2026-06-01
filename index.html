@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamIntegrity Analytics Control Hub</title>
+    <style>
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: #0c0c0e; color: #f1f1f5; margin: 0; padding: 40px 20px; display: flex; justify-content: center; }
+        .wrapper { width: 100%; max-width: 950px; }
+        header h1 { color: #a970ff; margin: 0 0 5px 0; font-size: 28px; }
+        header p { color: #adadb8; margin: 0 0 25px 0; font-size: 14px; }
+        
+        .pinned-container { background: #16161a; padding: 15px 20px; border-radius: 8px; border: 1px solid #24242d; margin-bottom: 25px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .pinned-lbl { font-size: 11px; text-transform: uppercase; font-weight: bold; color: #8a8a98; }
+        .stream-tag { background: #22222b; border: 1px solid #363645; padding: 6px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 500; }
+        .stream-tag:hover { border-color: #a970ff; background: #2b2b37; }
+        .del-tag { color: #ff4d4d; font-weight: bold; cursor: pointer; }
+
+        .search-row { background: #16161a; padding: 25px; border-radius: 10px; border: 1px solid #24242d; display: flex; gap: 15px; align-items: flex-end; margin-bottom: 30px; }
+        .input-wrap { display: flex; flex-direction: column; flex: 1; }
+        .input-wrap label { font-size: 11px; text-transform: uppercase; font-weight: bold; color: #8a8a98; margin-bottom: 8px; }
+        input { background: #0c0c0e; border: 2px solid #363645; color: white; padding: 14px; border-radius: 6px; font-size: 16px; outline: none; }
+        input:focus { border-color: #a970ff; }
+        .action-cluster { display: flex; gap: 10px; }
+        button { background: #a970ff; color: white; font-weight: bold; border: none; padding: 16px 25px; border-radius: 6px; cursor: pointer; font-size: 15px; }
+        button:hover { background: #b483ff; }
+        .pin-action { background: #22222b; border: 1px solid #363645; }
+        .pin-action:hover { background: #32323f; }
+
+        .loading-view { display: none; text-align: center; padding: 50px; background: #16161a; border-radius: 10px; border: 1px solid #24242d; }
+        .spinner { border: 4px solid #24242d; border-top: 4px solid #a970ff; border-radius: 50%; width: 45px; height: 45px; animation: rotate 0.8s linear infinite; margin: 0 auto 20px; }
+        @keyframes rotate { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .clock-ticker { font-size: 26px; font-weight: bold; color: #a970ff; margin-top: 10px; font-family: monospace; }
+
+        .header-section { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #8a8a98; margin: 30px 0 15px 0; font-weight: bold; }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
+        .dashboard-card { background: #16161a; padding: 22px; border-radius: 8px; border: 1px solid #24242d; }
+        .dashboard-card h4 { margin: 0 0 8px 0; font-size: 12px; color: #8a8a98; text-transform: uppercase; }
+        .dashboard-card p { margin: 0; font-size: 24px; font-weight: bold; color: #ffffff; }
+
+        .signature-blueprint { background: #0f0f13; border: 2px dashed #363645; padding: 30px; border-radius: 8px; text-align: center; margin-bottom: 25px; }
+        .sig-label { font-size: 12px; text-transform: uppercase; color: #8a8a98; font-weight: bold; margin-bottom: 8px; letter-spacing: 0.5px; }
+        .sig-value { font-size: 42px; font-weight: bold; font-family: monospace; color: #00bfff; }
+        .sig-subtext { font-size: 12px; color: #5e5e6d; margin-top: 12px; font-style: italic; }
+
+        .banner-verdict { padding: 20px; border-radius: 8px; font-size: 18px; font-weight: bold; text-align: center; margin-bottom: 25px; }
+    </style>
+</head>
+<body>
+
+<div class="wrapper">
+    <header>
+        <h1>StreamIntegrity Platform Suite</h1>
+        <p>Comprehensive Data Audits • Merging Live Session Metrics with Archived Platform History</p>
+    </header>
+
+    <div class="pinned-container" id="pinned-row">
+        <span class="pinned-lbl">Pinned Channels:</span>
+    </div>
+
+    <div class="search-row">
+        <div class="input-wrap">
+            <label>Target Channel Username</label>
+            <input type="text" id="streamer-id" placeholder="Search user ID profile...">
+        </div>
+        <div class="action-cluster">
+            <button class="pin-action" onclick="pinChannelToHub()" title="Save Channel">📌 Pin</button>
+            <button onclick="runChannelVerificationPipeline()">Verify Profile</button>
+        </div>
+    </div>
+
+    <div class="loading-view" id="loading-overlay">
+        <div class="spinner"></div>
+        <div id="loading-txt">Connecting to background databases...</div>
+        <div class="clock-ticker" id="timer-clock">10s</div>
+    </div>
+
+    <div id="analytics-dashboard" style="display: none;">
+        <div class="banner-verdict" id="panel-verdict"></div>
+
+        <div class="signature-blueprint">
+            <div class="sig-label">Live Audience Distribution Matrix</div>
+            <div class="sig-value" id="panel-signature">0 (0 (0))</div>
+            <div class="sig-subtext">Structure Format Blueprint: Current Viewers (Active Human Chatters (Suspicious / Unauthenticated Bot Accounts))</div>
+        </div>
+
+        <div class="header-section">Live Session Stream Metrics</div>
+        <div class="dashboard-grid" style="grid-template-columns: 1fr 1fr;">
+            <div class="dashboard-card"><h4 style="color:#a970ff;">Audited Channel</h4><p id="panel-name" style="color:#a970ff;"></p></div>
+            <div class="dashboard-card"><h4>Live Chat Speed</h4><p id="panel-speed"></p></div>
+        </div>
+
+        <div class="header-section">TwitchTracker Archived History Summary (Past 30 Days)</div>
+        <div class="dashboard-grid">
+            <div class="dashboard-card"><h4>Avg Viewers</h4><p id="stat-avg" style="color:#e2e2e9;"></p></div>
+            <div class="dashboard-card"><h4>Peak Viewers</h4><p id="stat-peak" style="color:#e2e2e9;"></p></div>
+            <div class="dashboard-card"><h4>Hours Streamed</h4><p id="stat-hours" style="color:#e2e2e9;"></p></div>
+            <div class="dashboard-card"><h4>Followers Gained</h4><p id="stat-followers" style="color:#e2e2e9;"></p></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let savedChannels = JSON.parse(localStorage.getItem('saved_twitch_channels')) || [];
+
+    function drawPinnedHeaderBar() {
+        const row = document.getElementById('pinned-row');
+        row.innerHTML = '<span class="pinned-lbl">Pinned Channels:</span>';
+        if(savedChannels.length === 0) {
+            row.innerHTML += '<span style="color:#50505c; font-size:13px; margin-left:5px;">Dashboard empty. Pin channels to keep them tracked.</span>';
+            return;
+        }
+        savedChannels.forEach(chan => {
+            const tag = document.createElement('div');
+            tag.className = 'stream-tag';
+            tag.innerHTML = `<span>#${chan}</span><span class="del-tag" onclick="event.stopPropagation(); removePinnedChannel('${chan}')">×</span>`;
+            tag.onclick = () => {
+                document.getElementById('streamer-id').value = chan;
+                runChannelVerificationPipeline();
+            };
+            row.appendChild(tag);
+        });
+    }
+
+    function pinChannelToHub() {
+        const target = document.getElementById('streamer-id').value.trim().toLowerCase();
+        if(!target) return;
+        if(!savedChannels.includes(target)) {
+            savedChannels.push(target);
+            localStorage.setItem('saved_twitch_channels', JSON.stringify(savedChannels));
+            drawPinnedHeaderBar();
+        }
+    }
+
+    function removePinnedChannel(chan) {
+        savedChannels = savedChannels.filter(item => item !== chan);
+        localStorage.setItem('saved_twitch_channels', JSON.stringify(savedChannels));
+        drawPinnedHeaderBar();
+    }
+
+    async function runChannelVerificationPipeline() {
+        const user = document.getElementById('streamer-id').value.trim().toLowerCase();
+        if(!user) { alert("Please input a target channel username."); return; }
+
+        const loader = document.getElementById('loading-overlay');
+        const board = document.getElementById('analytics-dashboard');
+        const txt = document.getElementById('loading-txt');
+        const ticker = document.getElementById('timer-clock');
+
+        board.style.display = 'none';
+        loader.style.display = 'block';
+        txt.innerText = "Querying live servers and downloading TwitchTracker performance records...";
+        
+        let secondsLeft = 10;
+        ticker.innerText = `${secondsLeft}s`;
+        
+        const runtimeClock = setInterval(() => {
+            secondsLeft--;
+            if (secondsLeft >= 0) {
+                ticker.innerText = `${secondsLeft}s`;
+                if(secondsLeft === 7) {
+                    txt.innerText = `Analyzing IRC stream socket lines for channel #${user}...`;
+                }
+            }
+        }, 1000);
+
+        try {
+            const response = await fetch('http://127.0.0.1:8000/api/audit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: user })
+            });
+
+            clearInterval(runtimeClock);
+            if (!response.ok) throw new Error("Data retrieval pipeline failed.");
+
+            const data = await response.json();
+
+            // Populate Interface Elements
+            document.getElementById('panel-verdict').innerText = `AUDIT RESULT: ${data.verdict}`;
+            document.getElementById('panel-verdict').style.backgroundColor = data.ui_color + '15';
+            document.getElementById('panel-verdict').style.border = `1px solid ${data.ui_color}`;
+            document.getElementById('panel-verdict').style.color = data.ui_color;
+
+            document.getElementById('panel-signature').innerText = data.format_string;
+            document.getElementById('panel-name').innerText = `#${data.channel}`;
+            document.getElementById('panel-speed').innerText = data.is_live ? `${data.chat_speed_mpm} MPM` : "OFFLINE";
+
+            document.getElementById('stat-avg').innerText = data.avg_viewers;
+            document.getElementById('stat-peak').innerText = data.peak_viewers;
+            document.getElementById('stat-hours').innerText = data.hours_streamed !== "N/A" ? `${data.hours_streamed} hrs` : "N/A";
+            document.getElementById('stat-followers').innerText = data.followers_gained;
+
+            loader.style.display = 'none';
+            board.style.display = 'block';
+        } catch (err) {
+            clearInterval(runtimeClock);
+            alert("Connection error. Make sure app.py is running via terminal inside VS Code.");
+            loader.style.display = 'none';
+        }
+    }
+
+    // Run Initial Layout Builders
+    drawPinnedHeaderBar();
+</script>
+
+</body>
+</html>
